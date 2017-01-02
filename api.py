@@ -1,13 +1,23 @@
 from flask import Flask
 from flask_restful import Api, Resource
 from flask_pymongo import PyMongo
-from flask import jsonify
 
 app = Flask(__name__)
 app.config['MONGO_DBNAME'] = 'dallas'
 app.config['MONGO_URI'] = 'mongodb://localhost:27017/dallas'
 api = Api(app)
 mongo = PyMongo(app)
+
+
+class ClustersResource(Resource):
+    def get(self):
+        clusters = mongo.db.cluster.find()
+        output = []
+
+        for cluster in clusters:
+            output.append(cluster)
+
+        return output
 
 
 class HostsResource(Resource):
@@ -35,7 +45,7 @@ class HostResource(Resource):
         return mongo.db.host.find_one({'_id': host_id})
 
 
-class HostStatisticsResource(Resource):
+class HostsStatisticsResource(Resource):
     def get(self):
         # pipeline = [
         #     {'$match': {'cpu_manufacturer': 'Intel'}},
@@ -46,10 +56,28 @@ class HostStatisticsResource(Resource):
         return {'intel_hosts': intel, 'amd_hosts': amd}
 
 
-api.add_resource(HostsResource, '/hosts')
-api.add_resource(VmsResource, '/vms')
-api.add_resource(HostResource, '/hosts/<host_id>')
-api.add_resource(HostStatisticsResource, '/hosts/statistics')
+class TemplatesResource(Resource):
+    def get(self):
+        templates = mongo.db.template.find()
 
+        output = []
+        for template in templates:
+            output.append(template)
+        return output
+
+
+# hosts endpoints
+api.add_resource(HostResource, '/hosts/<host_id>')
+api.add_resource(HostsStatisticsResource, '/hosts/statistics')
+api.add_resource(HostsResource, '/hosts')
+
+# clusters endpoints
+api.add_resource(ClustersResource, '/clusters')
+
+# vms endpoints
+api.add_resource(VmsResource, '/vms')
+
+# templates endpoints
+api.add_resource(TemplatesResource, '/templates')
 if __name__ == '__main__':
     app.run(debug=True)

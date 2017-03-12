@@ -1,0 +1,4 @@
+Flask-PyMongo==0.4.1
+Flask-RESTful==0.3.5
+webargs==1.5.3
+

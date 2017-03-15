@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_restful import Api, Resource
+from flask_restful.utils import cors
 from flask_pymongo import PyMongo
 from webargs.flaskparser import use_args, use_kwargs, parser, abort
 from marshmallow import fields
@@ -8,6 +9,14 @@ app = Flask(__name__)
 app.config['MONGO_DBNAME'] = 'dallas'
 app.config['MONGO_URI'] = 'mongodb://localhost:27017/dallas'
 api = Api(app)
+api.decorators = [
+    cors.crossdomain(
+        origin='*',
+        methods=['GET'],
+        attach_to_all=True,
+        automatic_options=True
+    )
+]
 mongo = PyMongo(app)
 
 
@@ -93,7 +102,8 @@ class HostsStatisticsResource(Resource):
         # ]
         intel = mongo.db.host.find({'cpu_manufacturer': 'Intel'}).count()
         amd = mongo.db.host.find({'cpu_manufacturer': 'AMD'}).count()
-        return {'intel_hosts': intel, 'amd_hosts': amd}
+        ibm = mongo.db.host.find({'cpu_manufacturer': 'IBM'}).count()
+        return {'intel_hosts': intel, 'amd_hosts': amd, 'ibm_hosts': ibm}
 
 
 class TemplatesResource(Resource):

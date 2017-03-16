@@ -21,14 +21,39 @@ mongo = PyMongo(app)
 
 
 class SetupResource(Resource):
+    setup_args = {
+        'stats_for': fields.String(required=False)
+    }
 
-    def get(self):
-        setups_count = mongo.db.setup.find().count()
-        output = []
-        pipe = [{'$group': {'_id': None, 'average_dcs_count': {'$avg': '$dcs_count'}}}]
-        avg_dcs = list(mongo.db.setup.aggregate(pipeline=pipe))
+    @use_args(setup_args)
+    def get(self, args):
 
-        stats = {'setups_count': setups_count, 'average_dcs_count': avg_dcs[0]['average_dcs_count']}
+        stats = {}
+        if 'stats_for' not in args:
+            setups_count = mongo.db.setup.find().count()
+            pipe = [{'$group': {'_id': None, 'average_dcs_count': {'$avg': '$dcs_count'}}}]
+            avg_dcs = list(mongo.db.setup.aggregate(pipeline=pipe))
+
+            stats = {'setups_count': setups_count, 'average_dcs_count': round(avg_dcs[0]['average_dcs_count'])}
+
+        elif args['stats_for'] == 'hosts':
+            intel = mongo.db.host.find({'cpu_manufacturer': 'Intel'}).count()
+            amd = mongo.db.host.find({'cpu_manufacturer': 'AMD'}).count()
+            ibm = mongo.db.host.find({'cpu_manufacturer': 'IBM'}).count()
+
+            pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
+            avg_vms = list(mongo.db.host.aggregate(pipeline=pipe))
+
+            stats = {'intel_hosts': intel, 'amd_hosts': amd, 'ibm_hosts': ibm,
+                     'average_running_vms': round(avg_vms[0]['average_running_vms'])}
+
+        elif args['stats_for'] == 'datacenters':
+            datacenters_count = mongo.db.datacenter.find().count()
+            pipe = [{'$group': {'_id': None, 'average_clusters_count': {'$avg': '$clusters_count'}}}]
+            avg_clusters = list(mongo.db.datacenter.aggregate(pipeline=pipe))
+
+            stats = {'datacenters_count': datacenters_count,
+                     'average_clusters_count': round(avg_clusters[0]['average_clusters_count'])}
 
         return stats
 
@@ -115,6 +140,7 @@ class TemplatesResource(Resource):
             output.append(template)
         return output
 
+
 api.add_resource(SetupResource, '/setups/statistics')
 
 # hosts endpoints
@@ -123,8 +149,6 @@ api.add_resource(HostResource, '/hosts/<host_id>')
 
 api.add_resource(HostsStatisticsResource, '/hosts/statistics')
 api.add_resource(HostsResource, '/hosts')
-
-
 
 # clusters endpoints
 api.add_resource(ClustersResource, '/clusters')

@@ -1,8 +1,8 @@
 from flask import Flask
-from flask_restful import Api, Resource
+from flask_restful import Api, Resource, abort
 from flask_restful.utils import cors
 from flask_pymongo import PyMongo
-from webargs.flaskparser import use_args, use_kwargs, parser, abort
+from webargs.flaskparser import use_args, use_kwargs, parser
 from marshmallow import fields
 
 app = Flask(__name__)
@@ -20,16 +20,16 @@ api.decorators = [
 mongo = PyMongo(app)
 
 
-class SetupResource(Resource):
+class GeneralStatisticsResource(Resource):
     setup_args = {
-        'stats_for': fields.String(required=False)
+        'stats_for': fields.String(required=True)
     }
 
     @use_args(setup_args)
     def get(self, args):
 
         stats = {}
-        if 'stats_for' not in args:
+        if args['stats_for'] == 'setups':
             setups_count = mongo.db.setup.find().count()
             pipe = [{'$group': {'_id': None, 'average_dcs_count': {'$avg': '$dcs_count'}}}]
             avg_dcs = list(mongo.db.setup.aggregate(pipeline=pipe))
@@ -37,6 +37,8 @@ class SetupResource(Resource):
             stats = {'setups_count': setups_count, 'average_dcs_count': round(avg_dcs[0]['average_dcs_count'])}
 
         elif args['stats_for'] == 'hosts':
+
+            hosts_count =  mongo.db.host.find().count()
             intel = mongo.db.host.find({'cpu_manufacturer': 'Intel'}).count()
             amd = mongo.db.host.find({'cpu_manufacturer': 'AMD'}).count()
             ibm = mongo.db.host.find({'cpu_manufacturer': 'IBM'}).count()
@@ -44,7 +46,7 @@ class SetupResource(Resource):
             pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
             avg_vms = list(mongo.db.host.aggregate(pipeline=pipe))
 
-            stats = {'intel_hosts': intel, 'amd_hosts': amd, 'ibm_hosts': ibm,
+            stats = {'intel_hosts': intel, 'amd_hosts': amd, 'ibm_hosts': ibm, 'hosts_count': hosts_count,
                      'average_running_vms': round(avg_vms[0]['average_running_vms'])}
 
         elif args['stats_for'] == 'datacenters':
@@ -54,6 +56,17 @@ class SetupResource(Resource):
 
             stats = {'datacenters_count': datacenters_count,
                      'average_clusters_count': round(avg_clusters[0]['average_clusters_count'])}
+
+        elif args['stats_for'] == 'clusters':
+            clusters_count = mongo.db.cluster.find().count()
+            vm_pipe = [{'$group': {'_id': None, 'average_vms_count': {'$avg': '$vms_count'}}}]
+            host_pipe = [{'$group': {'_id': None, 'average_hosts_count': {'$avg': '$hosts_count'}}}]
+
+            avg_hosts = list(mongo.db.cluster.aggregate(pipeline=host_pipe))
+            avg_vms = list(mongo.db.cluster.aggregate(pipeline=vm_pipe))
+
+            stats = {'clusters_count': clusters_count, 'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
+                     'average_vms_count': round(avg_vms[0]['average_vms_count'])}
 
         return stats
 
@@ -141,7 +154,7 @@ class TemplatesResource(Resource):
         return output
 
 
-api.add_resource(SetupResource, '/setups/statistics')
+api.add_resource(GeneralStatisticsResource, '/statistics/general')
 
 # hosts endpoints
 api.add_resource(DataCenterResource, '/datacenters')

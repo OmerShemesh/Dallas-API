@@ -38,7 +38,7 @@ class GeneralStatisticsResource(Resource):
 
         elif args['stats_for'] == 'hosts':
 
-            hosts_count =  mongo.db.host.find().count()
+            hosts_count = mongo.db.host.find().count()
             intel = mongo.db.host.find({'cpu_manufacturer': 'Intel'}).count()
             amd = mongo.db.host.find({'cpu_manufacturer': 'AMD'}).count()
             ibm = mongo.db.host.find({'cpu_manufacturer': 'IBM'}).count()
@@ -46,7 +46,8 @@ class GeneralStatisticsResource(Resource):
             pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
             avg_vms = list(mongo.db.host.aggregate(pipeline=pipe))
 
-            stats = {'intel_hosts': intel, 'amd_hosts': amd, 'ibm_hosts': ibm, 'hosts_count': hosts_count,
+            stats = {'intel_hosts': round((intel * 100) / hosts_count), 'amd_hosts': round((amd * 100) / hosts_count),
+                     'ibm_hosts': round((ibm * 100) / hosts_count), 'hosts_count': hosts_count,
                      'average_running_vms': round(avg_vms[0]['average_running_vms'])}
 
         elif args['stats_for'] == 'datacenters':
@@ -61,12 +62,18 @@ class GeneralStatisticsResource(Resource):
             clusters_count = mongo.db.cluster.find().count()
             vm_pipe = [{'$group': {'_id': None, 'average_vms_count': {'$avg': '$vms_count'}}}]
             host_pipe = [{'$group': {'_id': None, 'average_hosts_count': {'$avg': '$hosts_count'}}}]
+            ovirt_version_pipe = [{'$group': {'_id': '$ovirt_compatibility_version', 'count': {'$sum': 1}}}]
 
             avg_hosts = list(mongo.db.cluster.aggregate(pipeline=host_pipe))
             avg_vms = list(mongo.db.cluster.aggregate(pipeline=vm_pipe))
+            ovirt_versions = list(mongo.db.cluster.aggregate(pipeline=ovirt_version_pipe))
 
-            stats = {'clusters_count': clusters_count, 'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
-                     'average_vms_count': round(avg_vms[0]['average_vms_count'])}
+            for version in ovirt_versions:
+                version['percentage'] = round((version['count'] * 100) / clusters_count)
+
+            stats = {'clusters_count': clusters_count,
+                     'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
+                     'average_vms_count': round(avg_vms[0]['average_vms_count']), 'ovirt_versions': ovirt_versions}
 
         return stats
 

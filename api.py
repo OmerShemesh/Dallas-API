@@ -66,14 +66,33 @@ class GeneralStatisticsResource(Resource):
 
             avg_hosts = list(mongo.db.cluster.aggregate(pipeline=host_pipe))
             avg_vms = list(mongo.db.cluster.aggregate(pipeline=vm_pipe))
-            ovirt_versions = list(mongo.db.cluster.aggregate(pipeline=ovirt_version_pipe))
+            ovirt_versions_list = list(mongo.db.cluster.aggregate(pipeline=ovirt_version_pipe))
+            ovirt_versions = {}
 
-            for version in ovirt_versions:
-                version['percentage'] = round((version['count'] * 100) / clusters_count)
+            for version in ovirt_versions_list:
+                ovirt_versions[version['_id']] = round((version['count'] * 100) / clusters_count)
 
             stats = {'clusters_count': clusters_count,
                      'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
                      'average_vms_count': round(avg_vms[0]['average_vms_count']), 'ovirt_versions': ovirt_versions}
+
+        elif args['stats_for'] == 'vms':
+            vms_count = mongo.db.vm.find().count()
+            pipe = [{'$group': {'_id': None, 'average_mem_size': {'$avg': '$mem_size'}}}]
+            avg_mem_size = list(mongo.db.vm.aggregate(pipeline=pipe))
+
+            stats = {'vms_count': vms_count, 'average_mem_size': round(avg_mem_size[0]['average_mem_size'])}
+
+        elif args['stats_for'] == 'storage':
+            storage_count = mongo.db.storage.find().count()
+            storage_type_pipe = [{'$group': {'_id': '$storage_type', 'count': {'$sum': 1}}}]
+            storage_types_list = list(mongo.db.storage.aggregate(pipeline=storage_type_pipe))
+            storage_types = {}
+
+            for storage_type in storage_types_list:
+                storage_types[storage_type['_id']] = round((storage_type['count'] * 100) / storage_count)
+
+            stats = {'storage_count': storage_count, 'storage_types': storage_types}
 
         return stats
 

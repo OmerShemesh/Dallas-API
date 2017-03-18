@@ -39,15 +39,20 @@ class GeneralStatisticsResource(Resource):
         elif args['stats_for'] == 'hosts':
 
             hosts_count = mongo.db.host.find().count()
-            intel = mongo.db.host.find({'cpu_manufacturer': 'Intel'}).count()
-            amd = mongo.db.host.find({'cpu_manufacturer': 'AMD'}).count()
-            ibm = mongo.db.host.find({'cpu_manufacturer': 'IBM'}).count()
+            # intel = mongo.db.host.find({'cpu_manufacturer': 'Intel'}).count()
+            # amd = mongo.db.host.find({'cpu_manufacturer': 'AMD'}).count()
+            # ibm = mongo.db.host.find({'cpu_manufacturer': 'IBM'}).count()
 
-            pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
-            avg_vms = list(mongo.db.host.aggregate(pipeline=pipe))
+            vm_pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
+            cpu_pipe = [{'$group': {'_id': '$cpu_manufacturer', 'count': {'$sum': 1}}}]
+            avg_vms = list(mongo.db.host.aggregate(pipeline=vm_pipe))
+            cpus_list = list(mongo.db.host.aggregate(pipeline=cpu_pipe))
+            cpus = {}
 
-            stats = {'intel_hosts': round((intel * 100) / hosts_count), 'amd_hosts': round((amd * 100) / hosts_count),
-                     'ibm_hosts': round((ibm * 100) / hosts_count), 'hosts_count': hosts_count,
+            for cpu in cpus_list:
+                cpus[cpu['_id']] = round((cpu['count']*100) / hosts_count)
+
+            stats = {'cpus': cpus, 'hosts_count': hosts_count,
                      'average_running_vms': round(avg_vms[0]['average_running_vms'])}
 
         elif args['stats_for'] == 'datacenters':

@@ -50,7 +50,7 @@ class GeneralStatisticsResource(Resource):
             cpus = {}
 
             for cpu in cpus_list:
-                cpus[cpu['_id']] = round((cpu['count']*100) / hosts_count)
+                cpus[cpu['_id']] = float("{0:.2f}".format((cpu['count'] * 100) / hosts_count))
 
             stats = {'cpus': cpus, 'hosts_count': hosts_count,
                      'average_running_vms': round(avg_vms[0]['average_running_vms'])}
@@ -75,7 +75,7 @@ class GeneralStatisticsResource(Resource):
             ovirt_versions = {}
 
             for version in ovirt_versions_list:
-                ovirt_versions[version['_id']] = round((version['count'] * 100) / clusters_count)
+                ovirt_versions[version['_id']] = float("{0:.2f}".format((version['count'] * 100) / clusters_count))
 
             stats = {'clusters_count': clusters_count,
                      'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
@@ -95,7 +95,8 @@ class GeneralStatisticsResource(Resource):
             storage_types = {}
 
             for storage_type in storage_types_list:
-                storage_types[storage_type['_id']] = round((storage_type['count'] * 100) / storage_count)
+                storage_types[storage_type['_id']] = float(
+                    "{0:.2f}".format((storage_type['count'] * 100) / storage_count))
 
             stats = {'storage_count': storage_count, 'storage_types': storage_types}
 

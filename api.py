@@ -83,10 +83,16 @@ class GeneralStatisticsResource(Resource):
 
         elif args['stats_for'] == 'vms':
             vms_count = mongo.db.vm.find().count()
-            pipe = [{'$group': {'_id': None, 'average_mem_size': {'$avg': '$mem_size'}}}]
-            avg_mem_size = list(mongo.db.vm.aggregate(pipeline=pipe))
-
-            stats = {'vms_count': vms_count, 'average_mem_size': round(avg_mem_size[0]['average_mem_size'])}
+            mem_size_pipe = [{'$group': {'_id': None, 'average_mem_size': {'$avg': '$mem_size'}}}]
+            os_type_pipe = [{'$group': {'_id': '$os_type', 'count': {'$sum': 1}}}]
+            avg_mem_size = list(mongo.db.vm.aggregate(pipeline=mem_size_pipe))
+            os_types_list = list(mongo.db.vm.aggregate(pipeline=os_type_pipe))
+            os_types = {}
+            for os_type in os_types_list:
+                os_types[os_type['_id']] = float(
+                    "{0:.2f}".format((os_type['count'] * 100) / vms_count))
+            stats = {'vms_count': vms_count, 'average_mem_size': round(avg_mem_size[0]['average_mem_size']),
+                     'os_types': os_types}
 
         elif args['stats_for'] == 'storage':
             storage_count = mongo.db.storage.find().count()

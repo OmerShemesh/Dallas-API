@@ -47,15 +47,27 @@ class GeneralStatisticsResource(Resource):
             hosts_count = mongo.db.host.find().count()
             vm_pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
             cpu_pipe = [{'$group': {'_id': '$cpu_manufacturer', 'count': {'$sum': 1}}}]
+            cpu_cores_pipe = [{'$group': {'_id': '$cpu_cores', 'count': {'$sum': 1}}}]
+            mem_size_pipe = [{'$group': {'_id': None, 'average_mem_size': {'$avg': '$mem_size'}}}]
             avg_vms = list(mongo.db.host.aggregate(pipeline=vm_pipe))
             cpus_list = list(mongo.db.host.aggregate(pipeline=cpu_pipe))
-            cpus = {}
+            cpu_cores_list = list(mongo.db.host.aggregate(pipeline=cpu_cores_pipe))
+            avg_mem_size = list(mongo.db.host.aggregate(pipeline=mem_size_pipe))
 
+            cpus = {}
             for cpu in cpus_list:
-                cpus[cpu['_id']] = float("{0:.2f}".format((cpu['count'] * 100) / hosts_count))
+                if cpu['_id'] is not None:
+                    cpus[cpu['_id']] = float("{0:.2f}".format((cpu['count'] * 100) / hosts_count))
+
+            cpu_cores = {}
+            for core in cpu_cores_list:
+                if core['_id'] is not None:
+                    cpu_cores[core['_id']] = float(
+                        "{0:.2f}".format((core['count'] * 100) / hosts_count))
 
             stats = {'cpus': cpus, 'hosts_count': hosts_count,
-                     'average_running_vms': round(avg_vms[0]['average_running_vms'])}
+                     'average_running_vms': round(avg_vms[0]['average_running_vms']), 'cpu_cores': cpu_cores,
+                     'average_mem_size': round(avg_mem_size[0]['average_mem_size'])}
 
         elif args['stats_for'] == 'datacenters':
             datacenters_count = mongo.db.datacenter.find().count()
@@ -77,7 +89,8 @@ class GeneralStatisticsResource(Resource):
             ovirt_versions = {}
 
             for version in ovirt_versions_list:
-                ovirt_versions[version['_id']] = float("{0:.2f}".format((version['count'] * 100) / clusters_count))
+                if version['_id'] is not None:
+                    ovirt_versions[version['_id']] = float("{0:.2f}".format((version['count'] * 100) / clusters_count))
 
             stats = {'clusters_count': clusters_count,
                      'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
@@ -89,10 +102,13 @@ class GeneralStatisticsResource(Resource):
             os_type_pipe = [{'$group': {'_id': '$os_type', 'count': {'$sum': 1}}}]
             avg_mem_size = list(mongo.db.vm.aggregate(pipeline=mem_size_pipe))
             os_types_list = list(mongo.db.vm.aggregate(pipeline=os_type_pipe))
+
             os_types = {}
             for os_type in os_types_list:
-                os_types[os_type['_id']] = float(
-                    "{0:.2f}".format((os_type['count'] * 100) / vms_count))
+                if os_type['_id'] is not None:
+                    os_types[os_type['_id']] = float(
+                        "{0:.2f}".format((os_type['count'] * 100) / vms_count))
+
             stats = {'vms_count': vms_count, 'average_mem_size': round(avg_mem_size[0]['average_mem_size']),
                      'os_types': os_types}
 
@@ -103,8 +119,9 @@ class GeneralStatisticsResource(Resource):
             storage_types = {}
 
             for storage_type in storage_types_list:
-                storage_types[storage_type['_id']] = float(
-                    "{0:.2f}".format((storage_type['count'] * 100) / storage_count))
+                if storage_type['_id'] is not None:
+                    storage_types[storage_type['_id']] = float(
+                        "{0:.2f}".format((storage_type['count'] * 100) / storage_count))
 
             stats = {'storage_count': storage_count, 'storage_types': storage_types}
 

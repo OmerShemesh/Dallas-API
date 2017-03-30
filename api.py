@@ -31,16 +31,22 @@ class GeneralStatisticsResource(Resource):
         stats = {}
         if args['stats_for'] == 'setups':
             setups_count = mongo.db.setup.find().count()
-            dcs_pipe = [{'$group': {'_id': None, 'average_dcs_count': {'$avg': '$dcs_count'}}}]
-            clusters_pipe = [{'$group': {'_id': None, 'average_clusters_count': {'$avg': '$clusters_count'}}}]
-            hosts_pipe = [{'$group': {'_id': None, 'average_hosts_count': {'$avg': '$hosts_count'}}}]
+            dcs_pipe = [{'$group': {'_id': None, 'average_dcs_count': {'$avg': '$dcs_count'},
+                                    'max_dcs_count': {'$max': '$dcs_count'}}}]
+            clusters_pipe = [{'$group': {'_id': None, 'average_clusters_count': {'$avg': '$clusters_count'},
+                                         'max_clusters_count': {'$max': '$clusters_count'}}}]
+            hosts_pipe = [{'$group': {'_id': None, 'average_hosts_count': {'$avg': '$hosts_count'},
+                                      'max_hosts_count': {'$max': '$hosts_count'}}}]
             avg_dcs = list(mongo.db.setup.aggregate(pipeline=dcs_pipe))
             avg_clusters = list(mongo.db.setup.aggregate(pipeline=clusters_pipe))
             avg_hosts = list(mongo.db.setup.aggregate(pipeline=hosts_pipe))
 
             stats = {'setups_count': setups_count, 'average_dcs_count': round(avg_dcs[0]['average_dcs_count']),
+                     'max_dcs_count': avg_dcs[0]['max_dcs_count'],
                      'average_clusters_count': round(avg_clusters[0]['average_clusters_count']),
-                     'average_hosts_count': round(avg_hosts[0]['average_hosts_count'])}
+                     'max_clusters_count': avg_clusters[0]['max_clusters_count'],
+                     'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
+                     'max_hosts_count': avg_hosts[0]['max_hosts_count']}
 
         elif args['stats_for'] == 'hosts':
 

@@ -108,8 +108,10 @@ class GeneralStatisticsResource(Resource):
             os_type_pipe = [{'$group': {'_id': '$os_type', 'count': {'$sum': 1}}}]
             mem_usage_pipe = [{'$group': {'_id': None, 'average_mem_usage': {'$avg': '$mem_usage'}}}]
             cpu_usage_pipe = [{'$group': {'_id': None, 'average_cpu_usage': {'$avg': '$cpu_usage'}}}]
+            display_type_pipe = [{'$group': {'_id': '$display_type', 'count': {'$sum': 1}}}]
             avg_mem_size = list(mongo.db.vm.aggregate(pipeline=mem_size_pipe))
             os_types_list = list(mongo.db.vm.aggregate(pipeline=os_type_pipe))
+            display_types_list = list(mongo.db.vm.aggregate(pipeline=display_type_pipe))
             avg_mem_usage = list(mongo.db.vm.aggregate(pipeline=mem_usage_pipe))
             avg_cpu_usage = list(mongo.db.vm.aggregate(pipeline=cpu_usage_pipe))
 
@@ -119,8 +121,15 @@ class GeneralStatisticsResource(Resource):
                     os_types[os_type['_id']] = float(
                         "{0:.2f}".format((os_type['count'] * 100) / vms_count))
 
+            display_types = {}
+            for display_type in display_types_list:
+                if display_type['_id'] is not None:
+                    display_types[display_type['_id']] = float(
+                        "{0:.2f}".format((display_type['count'] * 100) / vms_count))
+
             stats = {'vms_count': vms_count, 'average_mem_size': round(avg_mem_size[0]['average_mem_size']),
                      'os_types': os_types,
+                     'display_types': display_types,
                      'average_mem_usage': float("{0:.2f}".format(avg_mem_usage[0]['average_mem_usage'])),
                      'average_cpu_usage': float("{0:.2f}".format(avg_cpu_usage[0]['average_cpu_usage']))}
 

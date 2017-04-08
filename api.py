@@ -54,11 +54,15 @@ class GeneralStatisticsResource(Resource):
             vm_pipe = [{'$group': {'_id': None, 'average_running_vms': {'$avg': '$running_vms_count'}}}]
             cpu_pipe = [{'$group': {'_id': '$cpu_manufacturer', 'count': {'$sum': 1}}}]
             cpu_cores_pipe = [{'$group': {'_id': '$cpu_cores', 'count': {'$sum': 1}}}]
+            mem_usage_pipe = [{'$group': {'_id': None, 'average_mem_usage': {'$avg': '$mem_usage'}}}]
+            cpu_usage_pipe = [{'$group': {'_id': None, 'average_cpu_usage': {'$avg': '$cpu_usage'}}}]
             mem_size_pipe = [{'$group': {'_id': None, 'average_mem_size': {'$avg': '$mem_size'}}}]
             avg_vms = list(mongo.db.host.aggregate(pipeline=vm_pipe))
             cpus_list = list(mongo.db.host.aggregate(pipeline=cpu_pipe))
             cpu_cores_list = list(mongo.db.host.aggregate(pipeline=cpu_cores_pipe))
             avg_mem_size = list(mongo.db.host.aggregate(pipeline=mem_size_pipe))
+            avg_mem_usage = list(mongo.db.host.aggregate(pipeline=mem_usage_pipe))
+            avg_cpu_usage = list(mongo.db.host.aggregate(pipeline=cpu_usage_pipe))
 
             cpus = {}
             for cpu in cpus_list:
@@ -73,7 +77,10 @@ class GeneralStatisticsResource(Resource):
 
             stats = {'cpus': cpus, 'hosts_count': hosts_count,
                      'average_running_vms': round(avg_vms[0]['average_running_vms']), 'cpu_cores': cpu_cores,
-                     'average_mem_size': round(avg_mem_size[0]['average_mem_size'])}
+                     'average_mem_size': round(avg_mem_size[0]['average_mem_size']),
+                     'average_mem_usage': float("{0:.2f}".format(avg_mem_usage[0]['average_mem_usage'])),
+                     'average_cpu_usage': float("{0:.2f}".format(avg_cpu_usage[0]['average_cpu_usage']))
+                     }
 
         elif args['stats_for'] == 'datacenters':
             datacenters_count = mongo.db.datacenter.find().count()
@@ -136,7 +143,9 @@ class GeneralStatisticsResource(Resource):
         elif args['stats_for'] == 'storage':
             storage_count = mongo.db.storage.find().count()
             storage_type_pipe = [{'$group': {'_id': '$storage_type', 'count': {'$sum': 1}}}]
+            disk_usage_pipe = [{'$group': {'_id': None, 'average_disk_usage': {'$avg': '$used_disk'}}}]
             storage_types_list = list(mongo.db.storage.aggregate(pipeline=storage_type_pipe))
+            avg_disk_usage = list(mongo.db.storage.aggregate(pipeline=disk_usage_pipe))
             storage_types = {}
 
             for storage_type in storage_types_list:
@@ -144,7 +153,8 @@ class GeneralStatisticsResource(Resource):
                     storage_types[storage_type['_id']] = float(
                         "{0:.2f}".format((storage_type['count'] * 100) / storage_count))
 
-            stats = {'storage_count': storage_count, 'storage_types': storage_types}
+            stats = {'storage_count': storage_count, 'storage_types': storage_types,
+                     'average_disk_usage': float("{0:.2f}".format(avg_disk_usage[0]['average_disk_usage']))}
 
         return stats
 

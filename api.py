@@ -1,8 +1,8 @@
 from flask import Flask
-from flask_restful import Api, Resource, abort
+from flask_restful import Api, Resource
 from flask_restful.utils import cors
 from flask_pymongo import PyMongo
-from webargs.flaskparser import use_args, use_kwargs, parser
+from webargs.flaskparser import use_args
 from marshmallow import fields
 
 app = Flask(__name__)
@@ -65,12 +65,15 @@ class GeneralStatisticsResource(Resource):
             cpu_usage_pipe = [{'$group': {'_id': None, 'average_cpu_usage': {'$avg': '$cpu_usage'}}}]
             mem_size_pipe = [{'$group': {'_id': None, 'average_mem_size': {'$avg': '$mem_size'},
                                          'max_mem_size': {'$max': '$mem_size'}}}]
+            os_type_pipe = [{'$group': {'_id': '$os', 'count': {'$sum': 1}}}]
+
             avg_vms = list(mongo.db.host.aggregate(pipeline=vm_pipe))
             cpus_list = list(mongo.db.host.aggregate(pipeline=cpu_pipe))
             cpu_cores_list = list(mongo.db.host.aggregate(pipeline=cpu_cores_pipe))
             avg_mem_size = list(mongo.db.host.aggregate(pipeline=mem_size_pipe))
             avg_mem_usage = list(mongo.db.host.aggregate(pipeline=mem_usage_pipe))
             avg_cpu_usage = list(mongo.db.host.aggregate(pipeline=cpu_usage_pipe))
+            os_types_list = list(mongo.db.host.aggregate(pipeline=os_type_pipe))
 
             cpus = {}
             for cpu in cpus_list:
@@ -83,9 +86,15 @@ class GeneralStatisticsResource(Resource):
                     cpu_cores[core['_id']] = float(
                         "{0:.2f}".format((core['count'] * 100) / hosts_count))
 
+            os_types = {}
+            for os_type in os_types_list:
+                if os_type['_id'] is not None:
+                    os_types[os_type['_id']] = float("{0:.2f}".format((os_type['count'] * 100) / hosts_count))
+
             stats = {'cpus': cpus, 'hosts_count': hosts_count,
                      'average_running_vms': round(avg_vms[0]['average_running_vms']),
                      'cpu_cores': cpu_cores,
+                     'os_types': os_types,
                      'max_running_vms': avg_vms[0]['max_running_vms'],
                      'average_mem_size': round(avg_mem_size[0]['average_mem_size']),
                      'max_mem_size': avg_mem_size[0]['max_mem_size'],
@@ -192,41 +201,6 @@ class GeneralStatisticsResource(Resource):
 
         return stats
 
-
-class DataCenterResource(Resource):
-    def get(self):
-        datacenters = mongo.db.datacenter.find()
-        output = []
-
-        for datacenter in datacenters:
-            output.append(datacenter)
-        return output
-
-
-class ClustersResource(Resource):
-    args = {
-        'vms': fields.Integer(required=False),
-        'hosts': fields.Integer(required=False)
-    }
-
-    @use_kwargs(args)
-    def get(self, vms, hosts):
-        output = []
-
-        if vms and not hosts:
-            clusters = mongo.db.cluster.find({"vms_count": {"$gte": vms}})
-        elif hosts and not vms:
-            clusters = mongo.db.cluster.find({"hosts_count": {"$gte": hosts}})
-        elif hosts and vms:
-            clusters = mongo.db.cluster.find(
-                {"hosts_count": {"$gte": hosts}, "vms_count": {"$gte": vms}})
-        else:
-            clusters = mongo.db.cluster.find()
-
-        for cluster in clusters:
-            output.append(cluster)
-
-        return output
 
 
 # general statistics endpoint

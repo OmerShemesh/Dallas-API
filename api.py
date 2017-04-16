@@ -26,6 +26,14 @@ class GeneralStatisticsResource(Resource):
     }
 
     @staticmethod
+    def get_percentage_dict(stats_list, objects_count):
+        stats_dict = {}
+        for item in stats_list:
+            if item['_id'] is not None:
+                stats_dict[item['_id']] = float("{0:.2f}".format((item['count'] * 100) / objects_count))
+        return stats_dict
+
+    @staticmethod
     def setup_stats():
         setups_count = mongo.db.setup.find().count()
         dcs_pipe = [{'$group': {'_id': None, 'average_dcs_count': {'$avg': '$dcs_count'},
@@ -79,22 +87,23 @@ class GeneralStatisticsResource(Resource):
         host_pipe = [{'$group': {'_id': None, 'average_hosts_count': {'$avg': '$hosts_count'},
                                  'max_hosts_count': {'$max': '$hosts_count'}}}]
         ovirt_version_pipe = [{'$group': {'_id': '$ovirt_compatibility_version', 'count': {'$sum': 1}}}]
+        cpu_family_pipe = [{'$group': {'_id': '$cpu_family', 'count': {'$sum': 1}}}]
 
         avg_hosts = list(mongo.db.cluster.aggregate(pipeline=host_pipe))
         avg_vms = list(mongo.db.cluster.aggregate(pipeline=vm_pipe))
+        cpu_families_list = list(mongo.db.cluster.aggregate(pipeline=cpu_family_pipe))
         ovirt_versions_list = list(mongo.db.cluster.aggregate(pipeline=ovirt_version_pipe))
-        ovirt_versions = {}
 
-        for version in ovirt_versions_list:
-            if version['_id'] is not None:
-                ovirt_versions[version['_id']] = float("{0:.2f}".format((version['count'] * 100) / clusters_count))
+        ovirt_versions = GeneralStatisticsResource.get_percentage_dict(ovirt_versions_list, clusters_count)
+        cpu_families = GeneralStatisticsResource.get_percentage_dict(cpu_families_list, clusters_count)
 
         return {'clusters_count': clusters_count,
                 'average_hosts_count': round(avg_hosts[0]['average_hosts_count']),
                 'max_hosts_count': avg_hosts[0]['max_hosts_count'],
                 'average_vms_count': round(avg_vms[0]['average_vms_count']),
                 'max_vms_count': avg_vms[0]['max_vms_count'],
-                'ovirt_versions': ovirt_versions}
+                'ovirt_versions': ovirt_versions,
+                'cpu_families': cpu_families}
 
     @staticmethod
     def host_stats():
@@ -118,21 +127,9 @@ class GeneralStatisticsResource(Resource):
         avg_cpu_usage = list(mongo.db.host.aggregate(pipeline=cpu_usage_pipe))
         os_types_list = list(mongo.db.host.aggregate(pipeline=os_type_pipe))
 
-        cpus = {}
-        for cpu in cpus_list:
-            if cpu['_id'] is not None:
-                cpus[cpu['_id']] = float("{0:.2f}".format((cpu['count'] * 100) / hosts_count))
-
-        cpu_cores = {}
-        for core in cpu_cores_list:
-            if core['_id'] is not None:
-                cpu_cores[core['_id']] = float(
-                    "{0:.2f}".format((core['count'] * 100) / hosts_count))
-
-        os_types = {}
-        for os_type in os_types_list:
-            if os_type['_id'] is not None:
-                os_types[os_type['_id']] = float("{0:.2f}".format((os_type['count'] * 100) / hosts_count))
+        cpus = GeneralStatisticsResource.get_percentage_dict(cpus_list, hosts_count)
+        cpu_cores = GeneralStatisticsResource.get_percentage_dict(cpu_cores_list, hosts_count)
+        os_types = GeneralStatisticsResource.get_percentage_dict(os_types_list, hosts_count)
 
         return {'cpus': cpus, 'hosts_count': hosts_count,
                 'average_running_vms': round(avg_vms[0]['average_running_vms']),
@@ -155,29 +152,25 @@ class GeneralStatisticsResource(Resource):
         mem_usage_pipe = [{'$group': {'_id': None, 'average_mem_usage': {'$avg': '$mem_usage'}}}]
         cpu_usage_pipe = [{'$group': {'_id': None, 'average_cpu_usage': {'$avg': '$cpu_usage'}}}]
         display_type_pipe = [{'$group': {'_id': '$display_type', 'count': {'$sum': 1}}}]
+        num_of_cpus_pipe = [{'$group': {'_id': '$num_of_cpus', 'count': {'$sum': 1}}}]
+
         avg_mem_size = list(mongo.db.vm.aggregate(pipeline=mem_size_pipe))
         os_types_list = list(mongo.db.vm.aggregate(pipeline=os_type_pipe))
         display_types_list = list(mongo.db.vm.aggregate(pipeline=display_type_pipe))
         avg_mem_usage = list(mongo.db.vm.aggregate(pipeline=mem_usage_pipe))
         avg_cpu_usage = list(mongo.db.vm.aggregate(pipeline=cpu_usage_pipe))
+        num_of_cpus_list = list(mongo.db.vm.aggregate(pipeline=num_of_cpus_pipe))
 
-        os_types = {}
-        for os_type in os_types_list:
-            if os_type['_id'] is not None:
-                os_types[os_type['_id']] = float(
-                    "{0:.2f}".format((os_type['count'] * 100) / vms_count))
-
-        display_types = {}
-        for display_type in display_types_list:
-            if display_type['_id'] is not None:
-                display_types[display_type['_id']] = float(
-                    "{0:.2f}".format((display_type['count'] * 100) / vms_count))
+        os_types = GeneralStatisticsResource.get_percentage_dict(os_types_list, vms_count)
+        display_types = GeneralStatisticsResource.get_percentage_dict(display_types_list, vms_count)
+        num_of_cpus = GeneralStatisticsResource.get_percentage_dict(num_of_cpus_list, vms_count)
 
         return {'vms_count': vms_count,
                 'average_mem_size': round(avg_mem_size[0]['average_mem_size']),
                 'max_mem_size': avg_mem_size[0]['max_mem_size'],
                 'os_types': os_types,
                 'display_types': display_types,
+                'num_of_cpus': num_of_cpus,
                 'average_mem_usage': float("{0:.2f}".format(avg_mem_usage[0]['average_mem_usage'])),
                 'average_cpu_usage': float("{0:.2f}".format(avg_cpu_usage[0]['average_cpu_usage']))}
 
@@ -189,12 +182,8 @@ class GeneralStatisticsResource(Resource):
                                        'max_disk_usage': {'$max': '$used_disk'}}}]
         storage_types_list = list(mongo.db.storage.aggregate(pipeline=storage_type_pipe))
         avg_disk_usage = list(mongo.db.storage.aggregate(pipeline=disk_usage_pipe))
-        storage_types = {}
 
-        for storage_type in storage_types_list:
-            if storage_type['_id'] is not None:
-                storage_types[storage_type['_id']] = float(
-                    "{0:.2f}".format((storage_type['count'] * 100) / storage_count))
+        storage_types = GeneralStatisticsResource.get_percentage_dict(storage_types_list, storage_count)
 
         return {'storage_count': storage_count, 'storage_types': storage_types,
                 'average_disk_usage': float("{0:.2f}".format(avg_disk_usage[0]['average_disk_usage'])),

@@ -161,6 +161,8 @@ class GeneralStatisticsResource(Resource):
         num_of_cpus_pipe = [{'$group': {'_id': '$num_of_cpus', 'count': {'$sum': 1}}}]
         nics_pipe = [{'$group': {'_id': None, 'average_nics_count': {'$avg': '$nics_count'},
                                  'max_nics_count': {'$max': '$nics_count'}}}]
+        disks_pipe = [{'$group': {'_id': None, 'average_disks_count': {'$avg': '$disks_count'},
+                                 'max_disks_count': {'$max': '$disks_count'}}}]
 
         avg_mem_size = list(mongo.db.vm.aggregate(pipeline=mem_size_pipe))
         os_types_list = list(mongo.db.vm.aggregate(pipeline=os_type_pipe))
@@ -169,6 +171,7 @@ class GeneralStatisticsResource(Resource):
         avg_cpu_usage = list(mongo.db.vm.aggregate(pipeline=cpu_usage_pipe))
         num_of_cpus_list = list(mongo.db.vm.aggregate(pipeline=num_of_cpus_pipe))
         avg_nics_list = list(mongo.db.vm.aggregate(pipeline=nics_pipe))
+        avg_disks_list = list(mongo.db.vm.aggregate(pipeline=disks_pipe))
 
         os_types = GeneralStatisticsResource.get_percentage_dict(os_types_list, vms_count)
         display_types = GeneralStatisticsResource.get_percentage_dict(display_types_list, vms_count)
@@ -183,7 +186,9 @@ class GeneralStatisticsResource(Resource):
                 'average_mem_usage': float("{0:.2f}".format(avg_mem_usage[0]['average_mem_usage'])),
                 'average_cpu_usage': float("{0:.2f}".format(avg_cpu_usage[0]['average_cpu_usage'])),
                 'average_nics_count': round(avg_nics_list[0]['average_nics_count']),
-                'max_nics_count': round(avg_nics_list[0]['max_nics_count'])
+                'max_nics_count': avg_nics_list[0]['max_nics_count'],
+                'average_disks_count': round(avg_disks_list[0]['average_disks_count']),
+                'max_disks_count': avg_disks_list[0]['max_disks_count']
                 }
 
     @staticmethod

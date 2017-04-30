@@ -8,7 +8,8 @@ from marshmallow import fields
 app = Flask(__name__)
 app.config['MONGO_DBNAME'] = 'dallas'
 app.config['MONGO_URI'] = 'mongodb://localhost:27017/dallas'
-api = Api(app)
+
+api = Api(app, prefix='/api')
 api.decorators = [
     cors.crossdomain(
         origin='*',
@@ -119,7 +120,7 @@ class GeneralStatisticsResource(Resource):
                                      'max_mem_size': {'$max': '$mem_size'}}}]
         os_type_pipe = [{'$group': {'_id': '$os', 'count': {'$sum': 1}}}]
         nics_pipe = [{'$group': {'_id': None, 'average_nics_count': {'$avg': '$nics_count'},
-                                      'max_nics_count': {'$max': '$nics_count'}}}]
+                                 'max_nics_count': {'$max': '$nics_count'}}}]
 
         avg_vms = list(mongo.db.host.aggregate(pipeline=vm_pipe))
         cpus_list = list(mongo.db.host.aggregate(pipeline=cpu_pipe))
@@ -162,7 +163,7 @@ class GeneralStatisticsResource(Resource):
         nics_pipe = [{'$group': {'_id': None, 'average_nics_count': {'$avg': '$nics_count'},
                                  'max_nics_count': {'$max': '$nics_count'}}}]
         disks_pipe = [{'$group': {'_id': None, 'average_disks_count': {'$avg': '$disks_count'},
-                                 'max_disks_count': {'$max': '$disks_count'}}}]
+                                  'max_disks_count': {'$max': '$disks_count'}}}]
 
         avg_mem_size = list(mongo.db.vm.aggregate(pipeline=mem_size_pipe))
         os_types_list = list(mongo.db.vm.aggregate(pipeline=os_type_pipe))
@@ -225,8 +226,14 @@ class GeneralStatisticsResource(Resource):
         return stats
 
 
+class SetupStatistics(Resource):
+    def get(self):
+        return list(mongo.db.setup.find())
+
+
 # general statistics endpoint
 api.add_resource(GeneralStatisticsResource, '/statistics/general')
+api.add_resource(SetupStatistics, '/statistics/setups')
 
 if __name__ == '__main__':
     app.run(debug=True)

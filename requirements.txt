@@ -1,5 +1,5 @@
 Flask-PyMongo==0.5.1
 Flask-RESTful==0.3.6
-webargs==1.7.0
+webargs==5.5.3
 
 
